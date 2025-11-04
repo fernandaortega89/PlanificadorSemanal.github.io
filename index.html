@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Estudio Organizado — Planificador Semanal</title>
+  <meta name="description" content="Planificador semanal 'Estudio Organizado' — tareas, prioridades y seguimiento semanal."/>
+  <style>
+    /* Reset básico */
+    * { box-sizing: border-box; }
+    html,body { height:100%; margin:0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; color:#0f172a; background: linear-gradient(180deg,#f8fafc 0%, #eef2ff 100%); }
+
+    /* Contenedor */
+    .app {
+      max-width:1200px;
+      margin:28px auto;
+      padding:18px;
+      background: rgba(255,255,255,0.85);
+      border-radius:12px;
+      box-shadow: 0 6px 24px rgba(16,24,40,0.08);
+      min-height:80vh;
+      display:flex;
+      flex-direction:column;
+      gap:14px;
+    }
+
+    header { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+    .brand { display:flex; align-items:center; gap:12px; }
+    .logo {
+      width:56px; height:56px; border-radius:10px;
+      display:grid; place-items:center;
+      background: linear-gradient(135deg,#6366f1,#06b6d4);
+      color:white; font-weight:700; font-size:20px;
+      box-shadow: 0 6px 18px rgba(99,102,241,0.2);
+    }
+    h1 { margin:0; font-size:20px; }
+    p.sub { margin:0; color:#475569; font-size:13px; }
+
+    /* Controles superiores */
+    .controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .btn {
+      background:#0f172a; color:#fff; padding:8px 12px; border-radius:8px; cursor:pointer; border:none; font-weight:600;
+    }
+    .btn.ghost { background:transparent; color:#0f172a; border:1px solid rgba(15,23,42,0.08); }
+    .btn.warn { background:#ef4444; }
+    .btn.small { padding:6px 8px; font-size:13px; border-radius:6px; }
+
+    /* Layout semanal */
+    .week {
+      display:grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap:10px;
+      align-items:start;
+    }
+    @media (max-width:900px) {
+      .week { grid-template-columns: repeat(2,1fr); }
+    }
+    @media (max-width:520px) {
+      .week { grid-template-columns: 1fr; }
+    }
+
+    .day {
+      background:linear-gradient(180deg, rgba(255,255,255,0.9), rgba(250,250,255,0.9));
+      border-radius:10px;
+      padding:12px;
+      min-height:160px;
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      border:1px solid rgba(15,23,42,0.04);
+    }
+    .day-header { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+    .day-title { font-weight:700; font-size:14px; color:#0f172a; }
+    .day-date { font-size:12px; color:#64748b; }
+
+    .tasks {
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      min-height:80px;
+    }
+    .task {
+      padding:8px 10px;
+      background:white;
+      border-radius:8px;
+      border:1px solid rgba(15,23,42,0.04);
+      box-shadow: 0 3px 10px rgba(2,6,23,0.03);
+      display:flex;
+      gap:10px;
+      align-items:flex-start;
+      cursor:grab;
+    }
+    .task.dragging { opacity:0.5; }
+    .task .left { flex:1; }
+    .task .title { font-weight:600; margin:0 0 6px 0; font-size:14px; }
+    .task .meta { margin:0; font-size:12px; color:#64748b; }
+    .task .actions { display:flex; gap:6px; }
+    .chip { padding:4px 8px; font-size:12px; border-radius:999px; background:#eef2ff; color:#3730a3; font-weight:700; }
+
+    /* Completed */
+    .completed { text-decoration:line-through; opacity:0.6; }
+
+    /* Modal */
+    .modal-backdrop {
+      position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+      background:rgba(2,6,23,0.45); z-index:60;
+    }
+    .modal {
+      background:white; width:100%; max-width:560px; border-radius:12px; padding:18px;
+      box-shadow: 0 18px 48px rgba(2,6,23,0.32);
+    }
+    .form-row { display:flex; gap:8px; margin-bottom:10px; }
+    .form-row.col { flex-direction:column; }
+    input[type="text"], textarea, select {
+      width:100%; padding:8px 10px; border-radius:8px; border:1px solid rgba(15,23,42,0.08);
+      font-size:14px;
+    }
+    label { font-size:13px; color:#334155; margin-bottom:6px; display:block; }
+
+    footer { display:flex; justify-content:space-between; align-items:center; color:#475569; font-size:13px; }
+
+    /* small helpers */
+    .muted { color:#64748b; font-size:13px; }
+    .flex { display:flex; gap:8px; align-items:center; }
+    .center { display:grid; place-items:center; }
+    .icon { width:18px; height:18px; display:inline-block; }
+    .hint { font-size:12px; color:#94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Planificador Semanal - Estudio Organizado">
+    <header>
+      <div class="brand">
+        <div class="logo">EO</div>
+        <div>
+          <h1>Estudio Organizado</h1>
+          <p class="sub">Planificador semanal • Guarda tus tareas en el navegador</p>
+        </div>
+      </div>
+
+      <div class="controls" role="toolbar" aria-label="Controles">
+        <button id="newTaskBtn" class="btn">+ Nueva tarea</button>
+        <button id="exportBtn" class="btn ghost small">Exportar JSON</button>
+        <button id="importBtn" class="btn ghost small">Importar</button>
+        <input id="importFile" type="file" accept="application/json" style="display:none" />
+        <button id="clearBtn" class="btn warn small" title="Eliminar todas las tareas del semana">Limpiar semana</button>
+      </div>
+    </header>
+
+    <main>
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:6px;">
+        <div class="muted">Semana: <span id="weekLabel">—</span></div>
+        <div class="hint">Arrastra tareas entre días. Los cambios se guardan automáticamente.</div>
+      </div>
+
+      <section class="week" id="weekContainer" aria-live="polite">
+        <!-- Días se inyectan por JS -->
+      </section>
+    </main>
+
+    <footer>
+      <div>Proyecto: <strong>Planificador.Semanal.github.io</strong></div>
+      <div class="muted">Creado por Estudio Organizado — localStorage • No requiere cuenta</div>
+    </footer>
+  </div>
+
+  <!-- Modal agregar/editar -->
+  <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="modal" role="document">
+      <h2 id="modalTitle">Nueva tarea</h2>
+      <div class="form-row col">
+        <label for="taskTitle">Título</label>
+        <input id="taskTitle" type="text" placeholder="Ej: Repasar álgebra - páginas 12-17" />
+      </div>
+      <div class="form-row">
+        <div style="flex:1">
+          <label for="taskDay">Día</label>
+          <select id="taskDay"></select>
+        </div>
+        <div style="width:140px">
+          <label for="taskPriority">Prioridad</label>
+          <select id="taskPriority">
+            <option value="alta">Alta</option>
+            <option value="media" selected>Media</option>
+            <option value="baja">Baja</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row col">
+        <label for="taskNotes">Notas / Detalles</label>
+        <textarea id="taskNotes" rows="3" placeholder="Opcional"></textarea>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;">
+        <button id="cancelModal" class="btn ghost small">Cancelar</button>
+        <button id="saveTaskBtn" class="btn small">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+/*
+  Planificador Semanal - Estudio Organizado
+  - Guarda en localStorage bajo la clave: planificador_estudio_organizado
+  - Estructura básica de tarea:
+    { id, title, notes, dayIndex (0-6), priority, completed, createdAt }
+*/
+
+const STORAGE_KEY = 'planificador_estudio_organizado_v1';
+const DAYS = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'];
+
+let tasks = []; // array de tareas
+let editingId = null;
+
+// ---------- Utilities ----------
+function uid(prefix='id') {
+  return prefix + '_' + Math.random().toString(36).slice(2,9);
+}
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    tasks = raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    console.error('Error cargando tareas', e);
+    tasks = [];
+  }
+}
+function formatWeekLabel() {
+  // muestra fechas aproximadas de la semana actual (lunes-domingo)
+  const now = new Date();
+  const day = now.getDay(); // 0-domingo .. 6-sab
+  // calcular lunes de esta semana
+  const diffToMonday = ((day + 6) % 7); // 0 if lunes
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - diffToMonday);
+  const toDate = (d) => d.toLocaleDateString();
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  return `${toDate(monday)} — ${toDate(sunday)}`;
+}
+
+// ---------- DOM references ----------
+const weekContainer = document.getElementById('weekContainer');
+const weekLabel = document.getElementById('weekLabel');
+const newTaskBtn = document.getElementById('newTaskBtn');
+const modalBackdrop = document.getElementById('modalBackdrop');
+const taskDaySelect = document.getElementById('taskDay');
+const taskTitleInput = document.getElementById('taskTitle');
+const taskNotesInput = document.getElementById('taskNotes');
+const taskPrioritySelect = document.getElementById('taskPriority');
+const saveTaskBtn = document.getElementById('saveTaskBtn');
+const cancelModal = document.getElementById('cancelModal');
+const modalTitle = document.getElementById('modalTitle');
+const exportBtn = document.getElementById('exportBtn');
+const importBtn = document.getElementById('importBtn');
+const importFile = document.getElementById('importFile');
+const clearBtn = document.getElementById('clearBtn');
+
+// Fill day select
+DAYS.forEach((d, i) => {
+  const o = document.createElement('option');
+  o.value = i;
+  o.textContent = d;
+  taskDaySelect.appendChild(o);
+});
+
+// ---------- Render ----------
+function renderWeek() {
+  weekContainer.innerHTML = '';
+  for (let i=0;i<7;i++){
+    const dayCol = document.createElement('section');
+    dayCol.className = 'day';
+    dayCol.dataset.dayIndex = i;
+    dayCol.innerHTML = `
+      <div class="day-header">
+        <div>
+          <div class="day-title">${DAYS[i]}</div>
+          <div class="day-date">${getDateLabelForDay(i)}</div>
+        </div>
+        <div class="chip">${getCountForDay(i)} tareas</div>
+      </div>
+      <div class="tasks" data-day="${i}" aria-label="Tareas de ${DAYS[i]}"></div>
+    `;
+
+    // drag events on column
+    const tasksContainer = dayCol.querySelector('.tasks');
+    tasksContainer.addEventListener('dragover', (ev) => {
+      ev.preventDefault();
+      tasksContainer.style.outline = '2px dashed rgba(99,102,241,0.18)';
+    });
+    tasksContainer.addEventListener('dragleave', (ev) => {
+      tasksContainer.style.outline = 'none';
+    });
+    tasksContainer.addEventListener('drop', (ev) => {
+      ev.preventDefault();
+      tasksContainer.style.outline = 'none';
+      const id = ev.dataTransfer.getData('text/plain');
+      moveTaskToDay(id, parseInt(tasksContainer.dataset.day,10));
+    });
+
+    weekContainer.appendChild(dayCol);
+  }
+  renderTasks();
+}
+
+function renderTasks() {
+  const containers = document.querySelectorAll('.tasks');
+  containers.forEach(c => c.innerHTML = '');
+  // order tasks by priority createdAt
+  const priorityOrder = { alta: 0, media: 1, baja: 2 };
+  tasks.slice().sort((a,b)=>{
+    if (a.completed !== b.completed) return a.completed ? 1 : -1;
+    if (priorityOrder[a.priority] !== priorityOrder[b.priority]) return priorityOrder[a.priority] - priorityOrder[b.priority];
+    return a.createdAt - b.createdAt;
+  }).forEach(t => {
+    const cont = document.querySelector(`.tasks[data-day="${t.dayIndex}"]`);
+    if (!cont) return;
+    cont.appendChild(createTaskNode(t));
+  });
+
+  weekLabel.textContent = formatWeekLabel();
+}
+
+function createTaskNode(task) {
+  const el = document.createElement('article');
+  el.className = 'task';
+  el.draggable = true;
+  el.dataset.id = task.id;
+  if (task.completed) el.classList.add('completed');
+  el.innerHTML = `
+    <div class="left">
+      <div class="title">${escapeHtml(task.title)}</div>
+      <div class="meta">${escapeHtml(task.notes || '')}</div>
+    </div>
+    <div class="actions" aria-hidden="true">
+      <div class="chip">${task.priority}</div>
+      <button class="btn ghost small" data-action="toggle">${task.completed ? 'Desmarcar' : 'Completar'}</button>
+      <button class="btn ghost small" data-action="edit">Editar</button>
+      <button class="btn ghost small" data-action="delete">Borrar</button>
+    </div>
+  `;
+
+  // drag handlers
+  el.addEventListener('dragstart', (ev) => {
+    el.classList.add('dragging');
+    ev.dataTransfer.setData('text/plain', task.id);
+    ev.dataTransfer.effectAllowed = 'move';
+  });
+  el.addEventListener('dragend', () => el.classList.remove('dragging'));
+
+  // action buttons
+  el.querySelector('[data-action="toggle"]').addEventListener('click', () => {
+    toggleComplete(task.id);
+  });
+  el.querySelector('[data-action="edit"]').addEventListener('click', () => {
+    openEditModal(task.id);
+  });
+  el.querySelector('[data-action="delete"]').addEventListener('click', () => {
+    if (confirm('¿Eliminar tarea?')) {
+      deleteTask(task.id);
+    }
+  });
+
+  return el;
+}
+
+// ---------- Task operations ----------
+function addTask({ title, notes, dayIndex, priority }) {
+  const t = {
+    id: uid('task'),
+    title: title.trim(),
+    notes: (notes||'').trim(),
+    dayIndex: Number(dayIndex),
+    priority,
+    completed: false,
+    createdAt: Date.now()
+  };
+  tasks.push(t);
+  save(); renderTasks();
+  return t;
+}
+function updateTask(id, patch) {
+  const i = tasks.findIndex(t=>t.id===id);
+  if (i===-1) return;
+  tasks[i] = { ...tasks[i], ...patch };
+  save(); renderTasks();
+}
+function deleteTask(id) {
+  tasks = tasks.filter(t=>t.id!==id);
+  save(); renderTasks();
+}
+function toggleComplete(id) {
+  const t = tasks.find(x=>x.id===id);
+  if (!t) return;
+  t.completed = !t.completed;
+  save(); renderTasks();
+}
+function moveTaskToDay(id, dayIndex) {
+  updateTask(id, { dayIndex });
+}
+function getCountForDay(dayIndex) {
+  return tasks.filter(t=>t.dayIndex===dayIndex).length;
+}
+
+function openEditModal(id) {
+  const t = tasks.find(x=>x.id===id);
+  if (!t) return;
+  editingId = id;
+  modalTitle.textContent = 'Editar tarea';
+  taskTitleInput.value = t.title;
+  taskNotesInput.value = t.notes || '';
+  taskPrioritySelect.value = t.priority;
+  taskDaySelect.value = t.dayIndex;
+  showModal();
+}
+
+// ---------- Modal UI ----------
+function showModal() {
+  modalBackdrop.style.display = 'flex';
+  modalBackdrop.setAttribute('aria-hidden','false');
+  taskTitleInput.focus();
+}
+function hideModal() {
+  modalBackdrop.style.display = 'none';
+  modalBackdrop.setAttribute('aria-hidden','true');
+  editingId = null;
+  clearModalFields();
+}
+function clearModalFields() {
+  taskTitleInput.value = '';
+  taskNotesInput.value = '';
+  taskPrioritySelect.value = 'media';
+  taskDaySelect.value = 0;
+  modalTitle.textContent = 'Nueva tarea';
+}
+
+// ---------- Event bindings ----------
+newTaskBtn.addEventListener('click', () => {
+  editingId = null;
+  clearModalFields();
+  showModal();
+});
+cancelModal.addEventListener('click', hideModal);
+modalBackdrop.addEventListener('click', (ev) => {
+  if (ev.target === modalBackdrop) hideModal();
+});
+saveTaskBtn.addEventListener('click', () => {
+  const title = taskTitleInput.value.trim();
+  if (!title) { alert('El título no puede quedar vacío.'); taskTitleInput.focus(); return; }
+  const notes = taskNotesInput.value;
+  const priority = taskPrioritySelect.value;
+  const dayIndex = Number(taskDaySelect.value);
+  if (editingId) {
+    updateTask(editingId, { title, notes, priority, dayIndex });
+    editingId = null;
+  } else {
+    addTask({ title, notes, priority, dayIndex });
+  }
+  hideModal();
+});
+
+// export/import
+exportBtn.addEventListener('click', () => {
+  const dataStr = JSON.stringify({ exportedAt: new Date().toISOString(), tasks }, null, 2);
+  const blob = new Blob([dataStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'planificador_estudio_organizado.json';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+importBtn.addEventListener('click', () => importFile.click());
+importFile.addEventListener('change', (ev) => {
+  const f = ev.target.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(reader.result);
+      if (Array.isArray(parsed.tasks)) {
+        if (confirm('La importación reemplazará las tareas actuales. ¿Continuar?')) {
+          tasks = parsed.tasks.map(t => ({ ...t, id: t.id || uid('task') }));
+          save(); renderTasks();
+        }
+      } else {
+        alert('Archivo no válido: no se encontró la estructura esperada.');
+      }
+    } catch (e) {
+      alert('Error leyendo el archivo. Asegúrate que sea un JSON válido.');
+    } finally {
+      importFile.value = '';
+    }
+  };
+  reader.readAsText(f);
+});
+
+// clear
+clearBtn.addEventListener('click', () => {
+  if (!confirm('Eliminar todas las tareas de la semana? Esta acción no se puede deshacer.')) return;
+  tasks = [];
+  save(); renderTasks();
+});
+
+// keyboard shortcuts: N para nueva tarea
+document.addEventListener('keydown', (e) => {
+  if (e.key.toLowerCase() === 'n' && !modalBackdrop.style.display) {
+    e.preventDefault();
+    newTaskBtn.click();
+  }
+});
+
+// ---------- Helpers ----------
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/[&<>"']/g, (m) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
+}
+
+function getDateLabelForDay(dayIndex) {
+  // calcula fecha concreta del día de la semana actual (Lunes=0..Domingo=6)
+  const now = new Date();
+  const today = now.getDay(); // 0-dom
+  // convertimos a índice lunes=0:
+  const indexToday = (today + 6) % 7;
+  const delta = dayIndex - indexToday;
+  const d = new Date(now);
+  d.setDate(now.getDate() + delta);
+  return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month:'short' });
+}
+
+// initialize
+(function init(){
+  load();
+  renderWeek();
+  // seed demo si no hay tareas (opcional)
+  if (tasks.length === 0) {
+    const demo = [
+      { title:'Plan lectura - Física', notes:'Cap.3 ejercicios 1-5', dayIndex:1, priority:'alta' },
+      { title:'Resolver problema integrales', notes:'Revisar técnicas de sustitución', dayIndex:2, priority:'media' },
+      { title:'Repaso vocabulario inglés', notes:'20 min: Anki', dayIndex:0, priority:'baja' }
+    ];
+    demo.forEach(d => addTask(d));
+  }
+})();
+</script>
+</body>
+</html>
