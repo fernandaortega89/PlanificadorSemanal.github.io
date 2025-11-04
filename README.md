@@ -3,8 +3,6 @@
 **Estudio Organizado** es una aplicación web sencilla y visual para organizar tus tareas de estudio durante la semana.  
 Desarrollada para funcionar 100% en el navegador, sin cuentas ni base de datos, guardando todo localmente mediante **localStorage**.
 
-👉 **Enlace directo:** [https://Planificador.Semanal.github.io](https://Planificador.Semanal.github.io)
-
 ---
 
 ## 🚀 Características principales
